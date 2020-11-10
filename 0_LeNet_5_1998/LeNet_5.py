@@ -1,6 +1,13 @@
 """
 Gradient-based learning applied to document recognition
+python 3.6
 tensorflow 2.1.0
+conda activate astroboi_tf_2
+
+with CUDA
+CUDA 10.1
+cudnn 7.6.0
+conda activate astroboi_cuda_2
 """
 import os
 import numpy as np
@@ -75,7 +82,7 @@ model.add(layers.Dense(units=10, activation='softmax'))
 model.summary()
 ###################### en LeNet-5 architecture ###############################
 
-# ###################### st Set up the learning hyperparameters ################
+###################### st Set up the learning hyperparameters ################
 def lr_schedule(epoch):
     # initiate the learning rate with value = 0.0005
     lr = 5e-4
@@ -102,7 +109,9 @@ checkpointer = ModelCheckpoint(filepath=model_path
                                # , mode='max'
                                , save_best_only=True
                                )
+###################### en Set up the learning hyperparameters ################
 
+###################### st learning 1 #########################################
 model.compile(loss='categorical_crossentropy'
               , optimizer=optimizers.SGD(lr=lr_schedule(0))
               , metrics=['accuracy']
@@ -113,12 +122,16 @@ hist = model.fit(X_train, y_train
                  , epochs=20
                  , validation_data=(X_test, y_test)
                  , callbacks=[early_stopping, checkpointer]
+                 # , callbacks=[checkpointer]
                  , verbose=1
                  , shuffle=True
                  )
-###################### en Set up the learning hyperparameters ################
+###################### en learning 1 #########################################
 
-# model.compile(loss=losses.categorical_crossentropy, optimizer=optimizers.SGD(lr=lr_schedule(0)), metrics=['accuracy'])
+###################### st learning 2 #########################################
+# model.compile(loss=losses.categorical_crossentropy
+#               , optimizer=optimizers.SGD(lr=lr_schedule(0))
+#               , metrics=['accuracy'])
 #
 # EPOCHS = 2
 # BATCH_SIZE = 32
@@ -137,7 +150,11 @@ hist = model.fit(X_train, y_train
 #           , validation_steps=validation_steps
 #           , shuffle=True
 #           , callbacks=[early_stopping, checkpointer]
+#           # , callbacks=[checkpointer]
 #           )
+###################### en learning 2 #########################################
 
+###################### st save model #########################################
 os.makedirs(MODEL_SAVE_DIR, exist_ok=True)
 model.save(MODEL_SAVE_DIR, include_optimizer=True)
+###################### en save model #########################################
