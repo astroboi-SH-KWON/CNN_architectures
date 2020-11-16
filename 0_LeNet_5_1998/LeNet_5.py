@@ -52,7 +52,7 @@ print('X_train.shape :', X_train.shape, ', y_train.shape :', y_train.shape)
 print('X_test.shape :', X_test.shape, ', y_test.shape :', y_test.shape)
 
 
-###################### st LeNet-5 model ######################################
+###################### st LeNet-5 structure ##################################
 # Instantiate an empty sequential model
 model = Sequential()
 # C1 Convolutional Layer
@@ -80,7 +80,7 @@ model.add(layers.Dense(units=10, activation='softmax'))
 
 # print the model summary
 model.summary()
-###################### en LeNet-5 model ######################################
+###################### en LeNet-5 structure ##################################
 
 ###################### st Set up the learning hyperparameters ################
 def lr_schedule(epoch):
