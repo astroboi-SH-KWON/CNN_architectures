@@ -14,14 +14,15 @@ import numpy as np
 from time import time
 
 from tensorflow.keras import utils
-from tensorflow.keras import Sequential
-from tensorflow.keras import layers
-from tensorflow.keras import optimizers
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Input, Flatten, Dense, Dropout, BatchNormalization
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, AveragePooling2D, ZeroPadding2D
 from tensorflow.keras import losses
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import TensorBoard
+from tensorflow.keras.optimizers import Adam, SGD
 
 training_data = np.loadtxt('../input/mnist_train.csv', delimiter=',', dtype=np.float32)
 test_data = np.loadtxt('../input/mnist_test.csv', delimiter=',', dtype=np.float32)
@@ -56,27 +57,27 @@ print('X_test.shape :', X_test.shape, ', y_test.shape :', y_test.shape)
 # Instantiate an empty sequential model
 model = Sequential()
 # C1 Convolutional Layer
-model.add(layers.Conv2D(filters=6, kernel_size=5, strides=1, activation='tanh', input_shape=(32, 32, 1), padding='same'))
+model.add(Conv2D(filters=6, kernel_size=5, strides=1, activation='tanh', input_shape=(32, 32, 1), padding='same'))
 
 # S2 Pooling Layer
-model.add(layers.AveragePooling2D(pool_size=2, strides=2, padding='valid'))
+model.add(AveragePooling2D(pool_size=2, strides=2, padding='valid'))
 
 # C3 Convolutional Layer
-model.add(layers.Conv2D(filters=16, kernel_size=5, strides=1, activation='tanh', padding='valid'))
+model.add(Conv2D(filters=16, kernel_size=5, strides=1, activation='tanh', padding='valid'))
 # S4 Pooling Layer
-model.add(layers.AveragePooling2D(pool_size=2, strides=2, padding='valid'))
+model.add(AveragePooling2D(pool_size=2, strides=2, padding='valid'))
 
 # C5 Convolutional Layer
-model.add(layers.Conv2D(filters=120, kernel_size=5, strides=1, activation='tanh', padding='valid'))
+model.add(Conv2D(filters=120, kernel_size=5, strides=1, activation='tanh', padding='valid'))
 
 # Flatten the CNN output to feed it with fully connected layers
-model.add(layers.Flatten())
+model.add(Flatten())
 
 # FC6 Fully Connected Layer
-model.add(layers.Dense(units=84, activation='tanh'))
+model.add(Dense(units=84, activation='tanh'))
 
 # FC7 Output layer with softmax activation
-model.add(layers.Dense(units=10, activation='softmax'))
+model.add(Dense(units=10, activation='softmax'))
 
 # print the model summary
 model.summary()
@@ -113,7 +114,7 @@ checkpointer = ModelCheckpoint(filepath=model_path
 
 ###################### st learning 1 #########################################
 model.compile(loss='categorical_crossentropy'
-              , optimizer=optimizers.SGD(lr=lr_schedule(0))
+              , optimizer=SGD(lr=lr_schedule(0))
               , metrics=['accuracy']
               )
 
@@ -130,7 +131,7 @@ hist = model.fit(X_train, y_train
 
 ###################### st learning 2 #########################################
 # model.compile(loss=losses.categorical_crossentropy
-#               , optimizer=optimizers.SGD(lr=lr_schedule(0))
+#               , optimizer=SGD(lr=lr_schedule(0))
 #               , metrics=['accuracy'])
 #
 # EPOCHS = 2
