@@ -6,59 +6,31 @@ conda install -c conda-forge matplotlib
 conda activate astroboi_cuda_2
 conda install -c conda-forge matplotlib
 """
-
 import os
+import time
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
 from tensorflow.keras import regularizers
 from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.layers import Input, Flatten, Dense, Dropout, BatchNormalization
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, AveragePooling2D, ZeroPadding2D
 from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.optimizers import Adam, SGD
 
-
-# st params
-CLASS_NUM = 5
-BATCH_SIZE = 16
-EPOCH_STEPS = 4323 // BATCH_SIZE
-IMAGE_SHAPE = (224, 224, 3)
-IMAGE_TRAIN = '../input/flowers/flowers'
-MODEL_NAME = 'GoogLeNET_flower.h5'
-# en params
-print(os.listdir(IMAGE_TRAIN))
-
-# prepare data
-train_datagen = ImageDataGenerator(
-    rescale=1./255
-    #, rotation_range=30
-    , width_shift_range=0.2
-    , height_shift_range=0.2
-    , shear_range=0.2
-    , zoom_range=0.2
-    , horizontal_flip=True
-)
-
-generator_main = train_datagen.flow_from_directory(
-    IMAGE_TRAIN
-    , target_size=(IMAGE_SHAPE[0], IMAGE_TRAIN[1])
-    , batch_size=BATCH_SIZE
-    , class_mode='categorical'
-)
+CLASS_NUM = None
+IMAGE_SHAPE = None
 
 
 def my_generator(generator):
-    while True:  # keras requires all generarots to be infinite
+    while True:  # keras requires all generators to be infinite
         data = next(generator)
         x = data[0]
         y = data[1], data[1], data[1]
         yield x, y
-
-
-train_generator = my_generator(generator_main)
 
 
 # create model
@@ -67,22 +39,22 @@ def inception(x, filters):
     path1 = Conv2D(filters=filters[0], kernel_size=(1, 1), strides=1, padding='same', activation='relu')(x)
 
     # 1*1 => 3*3
-    path2 = Conv2D(filters=filters[1][0], kernel_size=(1, 1), strides='same', activation='relu')(x)
-    path2 = Conv2D(filters=filters[1][1], kernel_size=(3, 3), strides='same', activation='relu')(path2)
+    path2 = Conv2D(filters=filters[1][0], kernel_size=(1, 1), strides=1, padding='same', activation='relu')(x)
+    path2 = Conv2D(filters=filters[1][1], kernel_size=(3, 3), strides=1, padding='same', activation='relu')(path2)
 
     # 1*1 => 5*5
-    path3 = Conv2D(filters=filters[2][0], kernel_size=(1, 1), strides='same', activation='relu')(x)
-    path3 = Conv2D(filters=filters[2][1], kernel_size=(5, 5), strides='same', activation='relu')(path3)
+    path3 = Conv2D(filters=filters[2][0], kernel_size=(1, 1), strides=1, padding='same', activation='relu')(x)
+    path3 = Conv2D(filters=filters[2][1], kernel_size=(5, 5), strides=1, padding='same', activation='relu')(path3)
 
     # MaxPooling 3*3 => 1*1
-    path4 = MaxPooling2D(pool_size=(3, 3), strides=1, padding='same')
-    path4 = Conv2D(filters=filters[3], kernel_size=(1, 1), strides='same', activation='relu')(path4)
+    path4 = MaxPooling2D(pool_size=(3, 3), strides=1, padding='same')(x)
+    path4 = Conv2D(filters=filters[3], kernel_size=(1, 1), strides=1, padding='same', activation='relu')(path4)
 
-    return Concatenate(axis=1)([path1, path2, path3, path4])
+    return Concatenate(axis=-1)([path1, path2, path3, path4])
 
 
 def auxiliary(x, name=None):
-    layer = AveragePooling2D(pool_size=(5, 5), stride=3, padding='valid')(x)
+    layer = AveragePooling2D(pool_size=(5, 5), strides=3, padding='valid')(x)
     layer = Conv2D(filters=128, kernel_size=(1,1), strides=1, padding='same', activation='relu')(layer)
     layer = Flatten()(layer)
     layer = Dense(units=256, activation='relu')(layer)
@@ -131,55 +103,15 @@ def googlenet():
     layer = Dense(units=256, activation='linear')(layer)
     main = Dense(units=CLASS_NUM, activation='softmax', name='main')(layer)
 
-    model = Model(inputs=layer_in, output=[main, aux1, aux2])
+    # model = Model(inputs=layer_in, output=[main, aux1, aux2])
+    model = Model(layer_in, [main, aux1, aux2])
 
     return model
 
 
-# train model
-model = googlenet()
-model.summary()
-# model.load_weights(MODEL_NAME)
-# tf.keras.utils.plot_model(model, 'GoogLeNet.png')
-
-# optimizer = Adam(lr=2 * 1e-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
-# optimizer = SGD(lr=1 * 1e-1, momentum=0.9, nesterov=True)
-# model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
-# model.compile(loss='categorical_crossentropy', optimizer='Adam', metrics=['accuracy'])
-
-optimizer = ['Adam', 'SGD', 'Adam', 'SGD']
-epochs = [20, 30, 20, 30]
-history_all = {}
-
-for i in range(len(optimizer)):
-    print('Using optimizer : ', optimizer[i], ', Epoch : ', str(epochs[i]))
-
-    model.compile(loss='categorical_crossentropy'
-                  , loss_weights={'main': 1.0, 'aux1': 0.3, 'aux2': 0.3}
-                  , optimizer=optimizer[i]
-                  , metrics=['accuracy']
-                  )
-
-    train_histroy = model.fit_generator(
-        train_generator
-        , steps_per_epoch=EPOCH_STEPS
-        , epochs=epochs[i]
-        # , callbacks==[checkpoint]
-        , shuffle=True
-    )
-
-    # save history
-    if len(history_all) == 0:
-        history_all = {key: [] for key in train_histroy.history}
-
-    for key in history_all:
-        history_all[key].extend(train_histroy.history[key])
-
-model.save(MODEL_NAME)
-
-
 # show train history
 def show_train_history(history, xlabel, ylabel, train):
+    print(history)
     for item in train:
         plt.plot(history[item])
     plt.title('Train_History')
@@ -189,7 +121,106 @@ def show_train_history(history, xlabel, ylabel, train):
     plt.show()
 
 
-show_train_history(history_all, 'Epoch', 'Accuracy', ('main_acc', 'aux1_acc', 'aux2_acc'))
-show_train_history(history_all, 'Epoch', 'Loss', ('main_loss', 'aux1_loss', 'aux2_loss'))
+if __name__ == '__main__':
+    start_time = time.perf_counter()
+    print("start [ GoogLeNet ]>>>>>>>>>>>>>>>>>>")
+    #################### st hyper param, opt ####################
+    # st global params
+    CLASS_NUM = 5
+    IMAGE_SHAPE = (224, 224, 3)
+    # en global params
 
+    batch_size = 16
+    epoch_step = 4323 // batch_size
+
+    img_train = '../input/flowers/flowers'
+    model_path = 'model/GoogLeNET_flower.h5'
+    os.makedirs('model/chck_pnt/', exist_ok=True)
+    model_chck_path = 'model/chck_pnt/{epoch}-{loss:.2f}-{main_accuracy:.2}.h5'
+
+    print(os.listdir(img_train))
+
+    # optimizer = ['Adam', 'SGD', 'Adam', 'SGD']
+    optimizer = ['Adam']
+    # epochs = [20, 30, 20, 30]
+    epochs = [2]
+    history_all = {}
+
+    checkpointer = ModelCheckpoint(filepath=model_chck_path
+                                   # , save_weights_only=True
+                                   , monitor='loss'
+                                   , verbose=1
+                                   # , mode='max'
+                                   , save_best_only=True
+                                   )
+    #################### en hyper param, opt ####################
+
+    # st prepare data
+    train_datagen = ImageDataGenerator(
+        rescale=1. / 255
+        # , rotation_range=30
+        , width_shift_range=0.2
+        , height_shift_range=0.2
+        , shear_range=0.2
+        , zoom_range=0.2
+        , horizontal_flip=True
+    )
+    generator_main = train_datagen.flow_from_directory(
+        img_train
+        , target_size=(IMAGE_SHAPE[0], IMAGE_SHAPE[1])
+        , batch_size=batch_size
+        , class_mode='categorical'
+    )
+    train_generator = my_generator(generator_main)
+    # en prepare data
+
+    # st train model
+    model = googlenet()
+    model.summary()
+    # model.load_weights(MODEL_NAME)
+    # tf.keras.utils.plot_model(model, 'GoogLeNet.png')
+
+    # optimizer = Adam(lr=2 * 1e-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+    # optimizer = SGD(lr=1 * 1e-1, momentum=0.9, nesterov=True)
+    # model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+    # model.compile(loss='categorical_crossentropy', optimizer='Adam', metrics=['accuracy'])
+
+    for i in range(len(optimizer)):
+        print('Using optimizer : ', optimizer[i], ', Epoch : ', str(epochs[i]))
+
+        model.compile(loss='categorical_crossentropy'
+                      , loss_weights={'main': 1.0, 'aux1': 0.3, 'aux2': 0.3}
+                      , optimizer=optimizer[i]
+                      , metrics=['accuracy']
+                      )
+
+        # train_histroy = model.fit_generator(
+        #     train_generator
+        #     , steps_per_epoch=epoch_step
+        #     , epochs=epochs[i]
+        #     # , callbacks=[checkpointer]
+        #     , shuffle=True
+        # )
+
+        train_histroy = model.fit(
+            train_generator
+            , steps_per_epoch=epoch_step
+            , epochs=epochs[i]
+            , callbacks=[checkpointer]
+            , shuffle=True
+        )
+
+        # save history
+        if len(history_all) == 0:
+            history_all = {key: [] for key in train_histroy.history}
+
+        for key in history_all:
+            history_all[key].extend(train_histroy.history[key])
+    # en train model
+
+    model.save(model_path)
+
+    show_train_history(history_all, 'Epoch', 'Accuracy', ('main_accuracy', 'aux1_accuracy', 'aux2_accuracy'))
+    show_train_history(history_all, 'Epoch', 'Loss', ('main_loss', 'aux1_loss', 'aux2_loss'))
+    print("::::::::::: %.2f seconds ::::::::::::::" % (time.perf_counter() - start_time))
 
